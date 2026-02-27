@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
 import { AgGridReact } from "ag-grid-react";
-import { ModuleRegistry, PaginationModule } from "ag-grid-community";
+import { ModuleRegistry, PaginationModule, ValueFormatterParams, ICellRendererParams } from "ag-grid-community";
 import { ServerSideRowModelModule, ColDef, IServerSideDatasource, IServerSideGetRowsParams } from "ag-grid-enterprise";
+import { Badge } from "@consta/uikit/Badge";
 
 import { getProjects } from "../../entities/project/api";
 import { gpnTheme } from "../../shared/config/ag-grid/theme";
@@ -10,6 +11,45 @@ import { Project } from "../../shared/api/types";
 import { FilterValues } from "../filters-panel/FiltersPanel";
 
 ModuleRegistry.registerModules([ServerSideRowModelModule, PaginationModule]);
+
+// --- 1. Форматтер для денег (добавляет пробелы и знак ₽) ---
+const currencyFormatter = (params: ValueFormatterParams) => {
+	if (params.value == null) return "";
+	return new Intl.NumberFormat("ru-RU", {
+		style: "currency",
+		currency: "RUB",
+		maximumFractionDigits: 0,
+	}).format(params.value);
+};
+
+// --- 2. Рендерер для Статуса (используем бейджи Consta) ---
+const StatusCellRenderer = (props: ICellRendererParams) => {
+	const status = props.value;
+	if (!status) return null;
+
+	let statusColor: "success" | "warning" | "error" | "normal" | "system" = "normal";
+	if (status === "Активный") statusColor = "success";
+	else if (status === "Приостановлен") statusColor = "error";
+	else if (status === "Планирование") statusColor = "warning";
+	else if (status === "Завершён") statusColor = "system";
+
+	return <Badge label={status} status={statusColor} size="s" form="round" />;
+};
+
+// --- 3. Рендерер для Прогресса (кастомный прогресс-бар) ---
+const ProgressCellRenderer = (props: ICellRendererParams) => {
+	const progress = props.value || 0;
+	const barColor = progress >= 80 ? "#4caf50" : progress >= 40 ? "#ff9800" : "#f44336";
+
+	return (
+		<div style={{ display: "flex", alignItems: "center", height: "100%", gap: "8px" }}>
+			<div style={{ flex: 1, backgroundColor: "#e0e0e0", borderRadius: "4px", height: "6px", overflow: "hidden" }}>
+				<div style={{ width: `${progress}%`, backgroundColor: barColor, height: "100%", transition: "width 0.3s" }} />
+			</div>
+			<span style={{ fontSize: "12px", minWidth: "32px", textAlign: "right", fontWeight: 500 }}>{progress}%</span>
+		</div>
+	);
+};
 
 interface ProjectsTableProps {
 	filters: FilterValues;
@@ -21,12 +61,12 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 			{ field: "id", headerName: "ID", width: 90 },
 			{ field: "projectName", headerName: "Проект", flex: 1, minWidth: 200 },
 			{ field: "department", headerName: "Департамент" },
-			{ field: "status", headerName: "Статус" },
-			{ field: "priority", headerName: "Приоритет" },
+			{ field: "status", headerName: "Статус", cellRenderer: StatusCellRenderer },
+			{ field: "priority", headerName: "Приоритет", width: 130 },
 			{ field: "manager", headerName: "Менеджер", minWidth: 150 },
-			{ field: "budget", headerName: "Бюджет", sortable: true },
-			{ field: "spent", headerName: "Потрачено" },
-			{ field: "progress", headerName: "Прогресс", sortable: true },
+			{ field: "budget", headerName: "Бюджет", sortable: true, valueFormatter: currencyFormatter },
+			{ field: "spent", headerName: "Потрачено", valueFormatter: currencyFormatter },
+			{ field: "progress", headerName: "Прогресс", sortable: true, cellRenderer: ProgressCellRenderer },
 			{ field: "startDate", headerName: "Дата начала" },
 		],
 		[],
@@ -79,7 +119,7 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 	);
 
 	return (
-		<div style={{ height: "600px", width: "100%" }}>
+		<div style={{ height: "calc(100vh - 150px)", width: "100%" }}>
 			<AgGridReact
 				theme={gpnTheme}
 				localeText={AG_GRID_LOCALE_RU}

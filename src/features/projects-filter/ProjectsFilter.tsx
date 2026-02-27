@@ -108,12 +108,12 @@ export const ProjectsFilter: React.FC<ProjectsFilterProps> = ({ onApply }) => {
 				/>
 			</div>
 
-			{/* Наш умный фильтр менеджеров */}
 			<ManagersFilter key={resetKey} onChange={setManagersFilter} />
 
-			<div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+			{/* --- ИСПРАВЛЕННЫЙ БЛОК КНОПОК --- */}
+			<div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
 				<Button label="Применить" onClick={handleApply} width="full" />
-				<Button label="Сбросить" onClick={handleReset} view="ghost" width="full" />
+				<Button label="Сбросить" onClick={handleReset} view="secondary" width="full" />
 			</div>
 		</div>
 	);
