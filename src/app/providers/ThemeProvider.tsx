@@ -1,4 +1,3 @@
-// src/app/providers/ThemeProvider.tsx
 import React, { PropsWithChildren } from "react";
 import { Theme, presetGpnDefault } from "@consta/uikit/Theme";
 

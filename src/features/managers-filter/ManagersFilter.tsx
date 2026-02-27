@@ -23,7 +23,6 @@ interface ManagerListItemProps {
 
 const ListFooter: React.FC<{ context?: VirtuosoContext }> = ({ context }) => {
 	if (!context?.isLoading) return null;
-
 	return (
 		<div style={{ padding: "12px", textAlign: "center" }}>
 			<Loader size="s" />
@@ -37,8 +36,11 @@ const ManagerListItem = memo(({ manager, isChecked, onToggle }: ManagerListItemP
 	</div>
 ));
 
-export const ManagersFilter: React.FC = () => {
-	// --- Состояния загрузки и поиска ---
+interface ManagersFilterProps {
+	onChange?: (data: { mode: "include" | "exclude"; ids: number[] }) => void;
+}
+
+export const ManagersFilter: React.FC<ManagersFilterProps> = ({ onChange }) => {
 	const [managers, setManagers] = useState<Manager[]>([]);
 	const [searchValue, setSearchValue] = useState<string | null>(null);
 	const [page, setPage] = useState(1);
@@ -47,13 +49,19 @@ export const ManagersFilter: React.FC = () => {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isFetchingAll, setIsFetchingAll] = useState(false);
 
-	// --- Состояния сложного выбора (Inverted Selection) ---
 	const [selectionMode, setSelectionMode] = useState<"include" | "exclude">("include");
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
 	const debouncedSearch = useDebounce(searchValue, 300);
 
-	// --- Загрузка данных списка ---
+	// --- ЭФФЕКТ ДЛЯ ПЕРЕДАЧИ ДАННЫХ НАРУЖУ ---
+	useEffect(() => {
+		onChange?.({
+			mode: selectionMode,
+			ids: Array.from(selectedIds),
+		});
+	}, [selectionMode, selectedIds, onChange]);
+
 	const fetchManagers = useCallback(
 		async (currentPage: number, search: string | null, isReset: boolean = false) => {
 			setIsLoading(true);
@@ -67,9 +75,7 @@ export const ManagersFilter: React.FC = () => {
 				setManagers((prev) => (isReset ? data : [...prev, ...data]));
 				setTotalCount(total);
 
-				if (!search && globalTotal === 0) {
-					setGlobalTotal(total);
-				}
+				if (!search && globalTotal === 0) setGlobalTotal(total);
 			} catch (error) {
 				console.error("Ошибка загрузки менеджеров:", error);
 			} finally {
@@ -92,20 +98,15 @@ export const ManagersFilter: React.FC = () => {
 		}
 	}, [isLoading, managers.length, totalCount, page, debouncedSearch, fetchManagers]);
 
-	// --- Логика выбора ОДНОГО чекбокса ---
 	const handleToggleItem = useCallback((id: number) => {
 		setSelectedIds((prevIds) => {
 			const newIds = new Set(prevIds);
-			if (newIds.has(id)) {
-				newIds.delete(id);
-			} else {
-				newIds.add(id);
-			}
+			if (newIds.has(id)) newIds.delete(id);
+			else newIds.add(id);
 			return newIds;
 		});
 	}, []);
 
-	// --- "Выбрать все" ---
 	const handleToggleAll = async () => {
 		if (debouncedSearch) {
 			setIsFetchingAll(true);

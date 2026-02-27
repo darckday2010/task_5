@@ -7,10 +7,15 @@ import { getProjects } from "../../entities/project/api";
 import { gpnTheme } from "../../shared/config/ag-grid/theme";
 import { AG_GRID_LOCALE_RU } from "../../shared/config/ag-grid/locale-ru";
 import { Project } from "../../shared/api/types";
+import { FilterValues } from "../filters-panel/FiltersPanel";
 
 ModuleRegistry.registerModules([ServerSideRowModelModule, PaginationModule]);
 
-export const ProjectsTable: React.FC = () => {
+interface ProjectsTableProps {
+	filters: FilterValues;
+}
+
+export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 	const columnDefs = useMemo<ColDef<Project>[]>(
 		() => [
 			{ field: "id", headerName: "ID", width: 90 },
@@ -32,7 +37,6 @@ export const ProjectsTable: React.FC = () => {
 			getRows: async (params: IServerSideGetRowsParams) => {
 				try {
 					const { startRow, endRow, sortModel } = params.request;
-
 					const limit = (endRow || 50) - (startRow || 0);
 					const page = Math.floor((startRow || 0) / limit) + 1;
 
@@ -44,6 +48,19 @@ export const ProjectsTable: React.FC = () => {
 					if (sortModel && sortModel.length > 0) {
 						apiParams._sort = sortModel[0].colId;
 						apiParams._order = sortModel[0].sort;
+					}
+
+					// --- ПРИМЕНЯЕМ ФИЛЬТРЫ К ЗАПРОСУ ---
+					if (filters.department) apiParams.department = filters.department;
+					if (filters.status) apiParams.status = filters.status;
+					if (filters.priority) apiParams.priority = filters.priority;
+
+					if (filters.managers && filters.managers.ids.length > 0) {
+						if (filters.managers.mode === "include") {
+							apiParams.managerId = filters.managers.ids;
+						} else {
+							apiParams.managerId_ne = filters.managers.ids;
+						}
 					}
 
 					const { data, totalCount } = await getProjects(apiParams);
@@ -58,11 +75,11 @@ export const ProjectsTable: React.FC = () => {
 				}
 			},
 		}),
-		[],
+		[filters],
 	);
 
 	return (
-		<div style={{ height: "600px", width: "100%", marginTop: "16px" }}>
+		<div style={{ height: "600px", width: "100%" }}>
 			<AgGridReact
 				theme={gpnTheme}
 				localeText={AG_GRID_LOCALE_RU}
