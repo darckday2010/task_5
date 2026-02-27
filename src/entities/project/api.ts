@@ -6,8 +6,7 @@ export interface GetProjectsParams {
 	_limit?: number;
 	_sort?: string;
 	_order?: "asc" | "desc";
-	// Позже мы добавим сюда фильтры (department, status и т.д.)
-	[key: string]: any;
+	[key: string]: string | number | boolean | string[] | undefined;
 }
 
 export const getProjects = (params: GetProjectsParams) => {

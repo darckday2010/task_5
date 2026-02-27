@@ -11,8 +11,6 @@ function App() {
 				<Text size="2xl" weight="bold" as="h1">
 					Аналитическая таблица проектов
 				</Text>
-
-				{/* Подключаем нашу собранную страницу */}
 				<ProjectsPage />
 			</Layout>
 		</ThemeProvider>

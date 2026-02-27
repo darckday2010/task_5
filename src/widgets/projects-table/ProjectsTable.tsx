@@ -8,7 +8,6 @@ import { gpnTheme } from "../../shared/config/ag-grid/theme";
 import { AG_GRID_LOCALE_RU } from "../../shared/config/ag-grid/locale-ru";
 import { Project } from "../../shared/api/types";
 
-// Регистрируем модуль серверной модели (Обязательное требование AG Grid v33+)
 ModuleRegistry.registerModules([ServerSideRowModelModule, PaginationModule]);
 
 export const ProjectsTable: React.FC = () => {
