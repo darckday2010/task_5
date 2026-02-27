@@ -7,8 +7,8 @@ import { Badge } from "@consta/uikit/Badge";
 import { getProjects } from "../../entities/project/api";
 import { gpnTheme } from "../../shared/config/ag-grid/theme";
 import { AG_GRID_LOCALE_RU } from "../../shared/config/ag-grid/locale-ru";
-import { Project } from "../../shared/api/types";
 import { FilterValues } from "../filters-panel/FiltersPanel";
+import { Project, ProjectStatus } from "../../entities/project/types";
 
 ModuleRegistry.registerModules([ServerSideRowModelModule, PaginationModule]);
 
@@ -28,10 +28,10 @@ const StatusCellRenderer = (props: ICellRendererParams) => {
 	if (!status) return null;
 
 	let statusColor: "success" | "warning" | "error" | "normal" | "system" = "normal";
-	if (status === "Активный") statusColor = "success";
-	else if (status === "Приостановлен") statusColor = "error";
-	else if (status === "Планирование") statusColor = "warning";
-	else if (status === "Завершён") statusColor = "system";
+	if (status === ProjectStatus.Active) statusColor = "success";
+	else if (status === ProjectStatus.Paused) statusColor = "error";
+	else if (status === ProjectStatus.Planning) statusColor = "warning";
+	else if (status === ProjectStatus.Completed) statusColor = "system";
 
 	return <Badge label={status} status={statusColor} size="s" form="round" />;
 };
@@ -63,7 +63,7 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 			{ field: "department", headerName: "Департамент" },
 			{ field: "status", headerName: "Статус", cellRenderer: StatusCellRenderer },
 			{ field: "priority", headerName: "Приоритет", width: 130 },
-			{ field: "manager", headerName: "Менеджер", minWidth: 150 },
+			{ field: "managerName", headerName: "Менеджер", minWidth: 150 },
 			{ field: "budget", headerName: "Бюджет", sortable: true, valueFormatter: currencyFormatter },
 			{ field: "spent", headerName: "Потрачено", valueFormatter: currencyFormatter },
 			{ field: "progress", headerName: "Прогресс", sortable: true, cellRenderer: ProgressCellRenderer },

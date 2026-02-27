@@ -1,40 +1,39 @@
-// src/features/projects-filter/ProjectsFilter.tsx
 import React, { useState } from "react";
 import { Select } from "@consta/uikit/Select";
 import { Button } from "@consta/uikit/Button";
 import { Text } from "@consta/uikit/Text";
 
-import { ManagersFilter } from "../managers-filter/ManagersFilter";
+import { ManagersFilter, SelectionMode } from "../managers-filter/ManagersFilter";
+import { Department, ProjectStatus, ProjectPriority } from "../../entities/project/types";
 
-type Option = { label: string; id: string };
+const TEXTS = {
+	LABELS: {
+		DEPARTMENT: "Департамент",
+		STATUS: "Статус",
+		PRIORITY: "Приоритет",
+	},
+	PLACEHOLDERS: {
+		DEPARTMENT: "Выберите департамент",
+		STATUS: "Выберите статус",
+		PRIORITY: "Выберите приоритет",
+	},
+	BUTTONS: {
+		APPLY: "Применить",
+		RESET: "Сбросить",
+	},
+} as const;
 
-const departments: Option[] = [
-	{ label: "Разведка", id: "Разведка" },
-	{ label: "Добыча", id: "Добыча" },
-	{ label: "Переработка", id: "Переработка" },
-	{ label: "Логистика", id: "Логистика" },
-	{ label: "Сбыт", id: "Сбыт" },
-];
+type Option<T extends string> = { label: string; id: T };
 
-const statuses: Option[] = [
-	{ label: "Активный", id: "Активный" },
-	{ label: "Завершён", id: "Завершён" },
-	{ label: "Приостановлен", id: "Приостановлен" },
-	{ label: "Планирование", id: "Планирование" },
-];
-
-// Добавили приоритеты строго по ТЗ и db.json
-const priorities: Option[] = [
-	{ label: "Высокий", id: "Высокий" },
-	{ label: "Средний", id: "Средний" },
-	{ label: "Низкий", id: "Низкий" },
-];
+const departmentOptions: Option<Department>[] = Object.values(Department).map((d) => ({ label: d, id: d }));
+const statusOptions: Option<ProjectStatus>[] = Object.values(ProjectStatus).map((s) => ({ label: s, id: s }));
+const priorityOptions: Option<ProjectPriority>[] = Object.values(ProjectPriority).map((p) => ({ label: p, id: p }));
 
 export interface FilterValues {
-	department?: string;
-	status?: string;
-	priority?: string;
-	managers?: { mode: "include" | "exclude"; ids: number[] };
+	department?: Department;
+	status?: ProjectStatus;
+	priority?: ProjectPriority;
+	managers?: { mode: SelectionMode; ids: number[] };
 }
 
 interface ProjectsFilterProps {
@@ -42,10 +41,13 @@ interface ProjectsFilterProps {
 }
 
 export const ProjectsFilter: React.FC<ProjectsFilterProps> = ({ onApply }) => {
-	const [department, setDepartment] = useState<Option | null>(null);
-	const [status, setStatus] = useState<Option | null>(null);
-	const [priority, setPriority] = useState<Option | null>(null);
-	const [managersFilter, setManagersFilter] = useState<{ mode: "include" | "exclude"; ids: number[] }>({ mode: "include", ids: [] });
+	const [department, setDepartment] = useState<Option<Department> | null>(null);
+	const [status, setStatus] = useState<Option<ProjectStatus> | null>(null);
+	const [priority, setPriority] = useState<Option<ProjectPriority> | null>(null);
+	const [managersFilter, setManagersFilter] = useState<{ mode: SelectionMode; ids: number[] }>({
+		mode: SelectionMode.Include,
+		ids: [],
+	});
 
 	const [resetKey, setResetKey] = useState(0);
 
@@ -62,7 +64,7 @@ export const ProjectsFilter: React.FC<ProjectsFilterProps> = ({ onApply }) => {
 		setDepartment(null);
 		setStatus(null);
 		setPriority(null);
-		setManagersFilter({ mode: "include", ids: [] });
+		setManagersFilter({ mode: SelectionMode.Include, ids: [] });
 		setResetKey((prev) => prev + 1);
 		onApply({});
 	};
@@ -71,49 +73,44 @@ export const ProjectsFilter: React.FC<ProjectsFilterProps> = ({ onApply }) => {
 		<div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 			<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 				<Text weight="bold" size="s">
-					Департамент
+					{TEXTS.LABELS.DEPARTMENT}
 				</Text>
 				<Select
-					placeholder="Выберите департамент"
-					items={departments}
+					placeholder={TEXTS.PLACEHOLDERS.DEPARTMENT}
+					items={departmentOptions}
 					value={department}
 					onChange={(value) => setDepartment(value)}
 					style={{ width: "100%" }}
 				/>
 			</div>
-
 			<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 				<Text weight="bold" size="s">
-					Статус
+					{TEXTS.LABELS.STATUS}
 				</Text>
 				<Select
-					placeholder="Выберите статус"
-					items={statuses}
+					placeholder={TEXTS.PLACEHOLDERS.STATUS}
+					items={statusOptions}
 					value={status}
 					onChange={(value) => setStatus(value)}
 					style={{ width: "100%" }}
 				/>
 			</div>
-
 			<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
 				<Text weight="bold" size="s">
-					Приоритет
+					{TEXTS.LABELS.PRIORITY}
 				</Text>
 				<Select
-					placeholder="Выберите приоритет"
-					items={priorities}
+					placeholder={TEXTS.PLACEHOLDERS.PRIORITY}
+					items={priorityOptions}
 					value={priority}
 					onChange={(value) => setPriority(value)}
 					style={{ width: "100%" }}
 				/>
 			</div>
-
 			<ManagersFilter key={resetKey} onChange={setManagersFilter} />
-
-			{/* --- ИСПРАВЛЕННЫЙ БЛОК КНОПОК --- */}
 			<div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-				<Button label="Применить" onClick={handleApply} width="full" />
-				<Button label="Сбросить" onClick={handleReset} view="secondary" width="full" />
+				<Button label={TEXTS.BUTTONS.APPLY} onClick={handleApply} width="full" />
+				<Button label={TEXTS.BUTTONS.RESET} onClick={handleReset} view="secondary" width="full" />
 			</div>
 		</div>
 	);

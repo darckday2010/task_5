@@ -2,7 +2,8 @@ const BASE_URL = "http://localhost:3001";
 
 export async function apiClient<T>(
 	endpoint: string,
-	params?: Record<string, string | number | boolean | undefined | string[]>,
+	params?: Record<string, string | number | boolean | undefined | string[] | number[]>,
+	signal?: AbortSignal,
 ): Promise<{ data: T; totalCount: number }> {
 	const url = new URL(`${BASE_URL}${endpoint}`);
 
@@ -19,7 +20,7 @@ export async function apiClient<T>(
 		});
 	}
 
-	const response = await fetch(url.toString());
+	const response = await fetch(url.toString(), { signal });
 
 	if (!response.ok) {
 		throw new Error(`API Error: ${response.statusText}`);
