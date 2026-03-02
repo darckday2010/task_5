@@ -1,5 +1,5 @@
 import { Manager, ManagerDto } from "./types";
-import { Department } from "../../shared/api/types";
+import { Department } from "shared/api/types";
 
 export const mapManagerDtoToDomain = (dto: ManagerDto): Manager => {
 	return {

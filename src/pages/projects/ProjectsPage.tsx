@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { ProjectsTable } from "../../widgets/projects-table/ProjectsTable";
-import { FiltersPanel, FilterValues } from "../../widgets/filters-panel/FiltersPanel";
+import { ProjectsTable } from "widgets/projects-table/ProjectsTable";
+import { FiltersPanel, FilterValues } from "widgets/filters-panel/FiltersPanel";
 
 export const ProjectsPage: React.FC = () => {
 	const [filters, setFilters] = useState<FilterValues>({});

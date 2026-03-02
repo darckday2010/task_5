@@ -1,13 +1,12 @@
+import { Checkbox } from "@consta/uikit/Checkbox";
+import { Loader } from "@consta/uikit/Loader";
+import { Text } from "@consta/uikit/Text";
+import { TextField } from "@consta/uikit/TextField";
 import React, { useState, useEffect, useCallback, memo, useRef } from "react";
 import { Virtuoso } from "react-virtuoso";
-import { TextField } from "@consta/uikit/TextField";
-import { Checkbox } from "@consta/uikit/Checkbox";
-import { Text } from "@consta/uikit/Text";
-import { Loader } from "@consta/uikit/Loader";
 
-import { getManagers } from "../../entities/manager/api";
-import { useDebounce } from "../../shared/lib/useDebounce";
-import { Manager } from "../../entities/manager/types";
+import { getManagers, Manager } from "entities/manager";
+import { useDebounce } from "shared/lib/useDebounce";
 
 export enum SelectionMode {
 	Include = "include",
@@ -21,10 +20,12 @@ const DEFAULT_TOTAL_MANAGERS = 250;
 const TEXTS = {
 	TITLE: "Менеджер проекта",
 	SEARCH_PLACEHOLDER: "Поиск менеджера...",
-	SELECT_ALL: "Выбрать все",
-	SELECT_FOUND: (count: number) => `Выбрать найденных (${count})`,
-	SELECTED_COUNT: (selected: number, total: number) => `Выбрано: ${selected} из ${total || DEFAULT_TOTAL_MANAGERS}`,
-	NOT_FOUND: "Ничего не найдено",
+	EMPTY_STATE: "Ничего не найдено",
+	CHECKBOX: {
+		ALL: "Выбрать все",
+		FOUND: (count: number) => `Выбрать найденных (${count})`,
+	},
+	SUMMARY: (selected: number, total: number) => `Выбрано: ${selected} из ${total || DEFAULT_TOTAL_MANAGERS}`,
 } as const;
 
 interface VirtuosoContext {
@@ -87,44 +88,42 @@ export const ManagersFilter: React.FC<ManagersFilterProps> = ({ onChange }) => {
 		};
 	}, []);
 
-	const fetchManagers = useCallback(
-		async (currentPage: number, search: string | null, isReset: boolean = false) => {
-			if (abortControllerRef.current) {
-				abortControllerRef.current.abort();
+	const fetchManagers = useCallback(async (currentPage: number, search: string | null, isReset: boolean = false) => {
+		if (abortControllerRef.current) {
+			abortControllerRef.current.abort();
+		}
+
+		const abortController = new AbortController();
+		abortControllerRef.current = abortController;
+
+		setIsLoading(true);
+		try {
+			const { data, totalCount: total } = await getManagers(
+				{
+					_page: currentPage,
+					_limit: LIMIT,
+					...(search ? { name_like: search } : {}),
+				},
+				abortController.signal,
+			);
+
+			setManagers((prev) => (isReset ? data : [...prev, ...data]));
+			setTotalCount(total);
+			if (!search) {
+				setGlobalTotal((prev) => (prev === 0 ? total : prev));
 			}
-
-			const abortController = new AbortController();
-			abortControllerRef.current = abortController;
-
-			setIsLoading(true);
-			try {
-				const { data, totalCount: total } = await getManagers(
-					{
-						_page: currentPage,
-						_limit: LIMIT,
-						...(search ? { name_like: search } : {}),
-					},
-					abortController.signal,
-				);
-
-				setManagers((prev) => (isReset ? data : [...prev, ...data]));
-				setTotalCount(total);
-
-				if (!search && globalTotal === 0) setGlobalTotal(total);
-			} catch (error: any) {
-				if (error.name === "AbortError") {
-					console.log("Предыдущий запрос менеджеров отменен");
-					return;
-				}
-				console.error("Ошибка загрузки менеджеров:", error);
-			} finally {
-				if (abortControllerRef.current === abortController) {
-					setIsLoading(false);
-				}
+		} catch (error: any) {
+			if (error.name === "AbortError") {
+				console.log("Предыдущий запрос менеджеров отменен");
+				return;
 			}
-		},
-		[globalTotal],
-	);
+			console.error("Ошибка загрузки менеджеров:", error);
+		} finally {
+			if (abortControllerRef.current === abortController) {
+				setIsLoading(false);
+			}
+		}
+	}, []);
 
 	useEffect(() => {
 		setPage(1);
@@ -161,17 +160,14 @@ export const ManagersFilter: React.FC<ManagersFilterProps> = ({ onChange }) => {
 						selectionMode === SelectionMode.Include ? newIds.has(id) : !newIds.has(id),
 					);
 
-					if (allMatchingChecked) {
-						matchingIds.forEach((id) => {
-							if (selectionMode === SelectionMode.Include) newIds.delete(id);
-							else newIds.add(id);
-						});
-					} else {
-						matchingIds.forEach((id) => {
-							if (selectionMode === SelectionMode.Include) newIds.add(id);
-							else newIds.delete(id);
-						});
-					}
+					const isIncludeMode = selectionMode === SelectionMode.Include;
+					const shouldAdd = allMatchingChecked ? !isIncludeMode : isIncludeMode;
+
+					matchingIds.forEach((id) => {
+						if (shouldAdd) newIds.add(id);
+						else newIds.delete(id);
+					});
+
 					return newIds;
 				});
 			} catch (error) {
@@ -214,7 +210,7 @@ export const ManagersFilter: React.FC<ManagersFilterProps> = ({ onChange }) => {
 
 			<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
 				<Checkbox
-					label={debouncedSearch ? TEXTS.SELECT_FOUND(totalCount) : TEXTS.SELECT_ALL}
+					label={debouncedSearch ? TEXTS.CHECKBOX.FOUND(totalCount) : TEXTS.CHECKBOX.ALL}
 					checked={isMasterChecked}
 					onChange={handleToggleAll}
 					disabled={isFetchingAll}
@@ -223,13 +219,13 @@ export const ManagersFilter: React.FC<ManagersFilterProps> = ({ onChange }) => {
 			</div>
 
 			<Text size="s" view="ghost">
-				{TEXTS.SELECTED_COUNT(selectedCount, globalTotal)}
+				{TEXTS.SUMMARY(selectedCount, globalTotal)}
 			</Text>
 
 			<div style={{ height: "250px", border: "1px solid #00416633", borderRadius: "4px", padding: "8px 0" }}>
 				{managers.length === 0 && !isLoading ? (
 					<Text size="s" view="ghost" style={{ padding: "0 12px" }}>
-						{TEXTS.NOT_FOUND}
+						{TEXTS.EMPTY_STATE}
 					</Text>
 				) : (
 					<Virtuoso

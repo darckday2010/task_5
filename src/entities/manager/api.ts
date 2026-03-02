@@ -1,7 +1,7 @@
-import { apiClient } from "../../shared/api/base";
+import { apiClient } from "shared/api/base";
 import { Manager, ManagerDto } from "./types";
 import { mapManagerDtoToDomain } from "./mapper";
-import { API_ENDPOINTS } from "../../shared/api/endpoints";
+import { API_ENDPOINTS } from "shared/api/endpoints";
 
 export type GetManagersParams = {
 	_page?: number;

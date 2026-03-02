@@ -1,7 +1,7 @@
-import { apiClient } from "../../shared/api/base";
+import { apiClient } from "shared/api/base";
 import { ProjectDto, Project } from "./types";
 import { mapProjectDtoToDomain } from "./mapper";
-import { API_ENDPOINTS } from "../../shared/api/endpoints";
+import { API_ENDPOINTS } from "shared/api/endpoints";
 
 export interface GetProjectsParams {
 	_page?: number;

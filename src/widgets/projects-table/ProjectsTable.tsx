@@ -4,15 +4,31 @@ import { ModuleRegistry, PaginationModule, ValueFormatterParams, ICellRendererPa
 import { ServerSideRowModelModule, ColDef, IServerSideDatasource, IServerSideGetRowsParams } from "ag-grid-enterprise";
 import { Badge } from "@consta/uikit/Badge";
 
-import { getProjects } from "../../entities/project/api";
-import { gpnTheme } from "../../shared/config/ag-grid/theme";
-import { AG_GRID_LOCALE_RU } from "../../shared/config/ag-grid/locale-ru";
-import { FilterValues } from "../filters-panel/FiltersPanel";
-import { Project, ProjectStatus } from "../../entities/project/types";
+import { getProjects, Project, ProjectStatus, Department, ProjectPriority } from "entities/project";
+import { gpnTheme } from "shared/config/ag-grid/theme";
+import { AG_GRID_LOCALE_RU } from "shared/config/ag-grid/locale-ru";
+// 1. Импортируем SelectionMode из фичи (виджетам разрешено импортировать фичи)
+import { SelectionMode } from "features/managers-filter";
 
 ModuleRegistry.registerModules([ServerSideRowModelModule, PaginationModule]);
 
-// --- 1. Форматтер для денег (добавляет пробелы и знак ₽) ---
+// 2. УДАЛЯЕМ импорт из виджета
+// import { FilterValues } from "widgets/filters-panel";
+
+// 3. ОПИСЫВАЕМ СВОЙ ЛОКАЛЬНЫЙ КОНТРАКТ
+export interface ProjectsTableFilters {
+	department?: Department;
+	status?: ProjectStatus;
+	priority?: ProjectPriority;
+	managers?: { mode: SelectionMode; ids: number[] };
+}
+
+// 4. Используем наш локальный тип
+interface ProjectsTableProps {
+	filters: ProjectsTableFilters;
+}
+
+// --- 1. Форматтер для денег ---
 const currencyFormatter = (params: ValueFormatterParams) => {
 	if (params.value == null) return "";
 	return new Intl.NumberFormat("ru-RU", {
@@ -22,9 +38,9 @@ const currencyFormatter = (params: ValueFormatterParams) => {
 	}).format(params.value);
 };
 
-// --- 2. Рендерер для Статуса (используем бейджи Consta) ---
+// --- 2. Рендерер для Статуса ---
 const StatusCellRenderer = (props: ICellRendererParams) => {
-	const status = props.value;
+	const status = props.value as ProjectStatus;
 	if (!status) return null;
 
 	let statusColor: "success" | "warning" | "error" | "normal" | "system" = "normal";
@@ -36,7 +52,7 @@ const StatusCellRenderer = (props: ICellRendererParams) => {
 	return <Badge label={status} status={statusColor} size="s" form="round" />;
 };
 
-// --- 3. Рендерер для Прогресса (кастомный прогресс-бар) ---
+// --- 3. Рендерер для Прогресса ---
 const ProgressCellRenderer = (props: ICellRendererParams) => {
 	const progress = props.value || 0;
 	const barColor = progress >= 80 ? "#4caf50" : progress >= 40 ? "#ff9800" : "#f44336";
@@ -50,10 +66,6 @@ const ProgressCellRenderer = (props: ICellRendererParams) => {
 		</div>
 	);
 };
-
-interface ProjectsTableProps {
-	filters: FilterValues;
-}
 
 export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 	const columnDefs = useMemo<ColDef<Project>[]>(
@@ -90,13 +102,12 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 						apiParams._order = sortModel[0].sort;
 					}
 
-					// --- ПРИМЕНЯЕМ ФИЛЬТРЫ К ЗАПРОСУ ---
 					if (filters.department) apiParams.department = filters.department;
 					if (filters.status) apiParams.status = filters.status;
 					if (filters.priority) apiParams.priority = filters.priority;
 
 					if (filters.managers && filters.managers.ids.length > 0) {
-						if (filters.managers.mode === "include") {
+						if (filters.managers.mode === SelectionMode.Include) {
 							apiParams.managerId = filters.managers.ids;
 						} else {
 							apiParams.managerId_ne = filters.managers.ids;
