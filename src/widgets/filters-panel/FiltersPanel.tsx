@@ -29,7 +29,6 @@ export interface FilterValues {
 	status?: ProjectStatus;
 	priority?: ProjectPriority;
 	managers?: { mode: SelectionMode; ids: number[] };
-	search?: string | null;
 }
 
 const DEFAULT_STATE = {
@@ -58,7 +57,6 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({ onApply }) => {
 			status: formState.status?.id,
 			priority: formState.priority?.id,
 			managers: formState.managers,
-			search: formState.search,
 		});
 	};
 

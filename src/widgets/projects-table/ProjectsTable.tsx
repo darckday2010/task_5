@@ -1,30 +1,23 @@
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useCallback } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, PaginationModule, ValueFormatterParams, ICellRendererParams } from "ag-grid-community";
 import { ServerSideRowModelModule, ColDef, IServerSideDatasource, IServerSideGetRowsParams } from "ag-grid-enterprise";
 import { Badge } from "@consta/uikit/Badge";
 
-import { getProjects, Project, ProjectStatus, Department, ProjectPriority } from "entities/project";
+import { getProjects, Project, ProjectStatus, Department, ProjectPriority, GetProjectsParams } from "entities/project";
 import { gpnTheme } from "shared/config/ag-grid/theme";
 import { AG_GRID_LOCALE_RU } from "shared/config/ag-grid/locale-ru";
-// 1. Импортируем SelectionMode из фичи (виджетам разрешено импортировать фичи)
 import { SelectionMode } from "features/managers-filter";
 
 ModuleRegistry.registerModules([ServerSideRowModelModule, PaginationModule]);
 
-// 2. УДАЛЯЕМ импорт из виджета
-// import { FilterValues } from "widgets/filters-panel";
-
-// 3. ОПИСЫВАЕМ СВОЙ ЛОКАЛЬНЫЙ КОНТРАКТ
 export interface ProjectsTableFilters {
 	department?: Department;
 	status?: ProjectStatus;
 	priority?: ProjectPriority;
 	managers?: { mode: SelectionMode; ids: number[] };
-	search?: string | null;
 }
 
-// 4. Используем наш локальный тип
 interface ProjectsTableProps {
 	filters: ProjectsTableFilters;
 }
@@ -86,64 +79,74 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 	);
 
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const fetchRows = useCallback(
+		async (params: IServerSideGetRowsParams) => {
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+			}
+
+			const abortController = new AbortController();
+			abortControllerRef.current = abortController;
+
+			try {
+				const { startRow, endRow, sortModel } = params.request;
+				const limit = (endRow || 50) - (startRow || 0);
+				const page = Math.floor((startRow || 0) / limit) + 1;
+
+				const apiParams: GetProjectsParams = {
+					_page: page,
+					_limit: limit,
+				};
+
+				if (sortModel && sortModel.length > 0) {
+					const { colId, sort } = sortModel[0];
+					apiParams._sort = colId;
+					if (sort === "asc" || sort === "desc") {
+						apiParams._order = sort;
+					}
+				}
+
+				if (filters.department) apiParams.department = filters.department;
+				if (filters.status) apiParams.status = filters.status;
+				if (filters.priority) apiParams.priority = filters.priority;
+				if (filters.managers?.ids?.length) {
+					if (filters.managers.mode === SelectionMode.Include) {
+						apiParams.managerId = filters.managers.ids;
+					} else {
+						apiParams.managerId_ne = filters.managers.ids;
+					}
+				}
+
+				const { data, totalCount } = await getProjects(apiParams, abortController.signal);
+
+				params.success({ rowData: data, rowCount: totalCount });
+			} catch (error: any) {
+				if (error.name === "AbortError" || error.message === "canceled") {
+					return;
+				}
+				console.error("Ошибка загрузки данных:", error);
+				params.fail();
+			}
+		},
+		[filters],
+	);
 
 	const serverSideDatasource = useMemo<IServerSideDatasource>(
 		() => ({
-			getRows: async (params: IServerSideGetRowsParams) => {
-				if (abortControllerRef.current) {
-					abortControllerRef.current.abort();
-				}
-
-				const abortController = new AbortController();
-				abortControllerRef.current = abortController;
-
-				try {
-					const { startRow, endRow, sortModel } = params.request;
-					const limit = (endRow || 50) - (startRow || 0);
-					const page = Math.floor((startRow || 0) / limit) + 1;
-
-					const apiParams: Record<string, any> = {
-						_page: page,
-						_limit: limit,
-						_name_like: filters.search,
-					};
-
-					if (sortModel && sortModel.length > 0) {
-						apiParams._sort = sortModel[0].colId;
-						apiParams._order = sortModel[0].sort;
-					}
-
-					if (filters.department) apiParams.department = filters.department;
-					if (filters.status) apiParams.status = filters.status;
-					if (filters.priority) apiParams.priority = filters.priority;
-
-					if (filters.managers && filters.managers.ids.length > 0) {
-						if (filters.managers.mode === SelectionMode.Include) {
-							apiParams.managerId = filters.managers.ids;
-						} else {
-							apiParams.managerId_ne = filters.managers.ids;
-						}
-					}
-					console.log(apiParams, filters);
-
-					const { data, totalCount } = await getProjects(apiParams);
-
-					params.success({
-						rowData: data,
-						rowCount: totalCount,
-					});
-				} catch (error) {
-					console.error("Ошибка загрузки данных:", error);
-					params.fail();
-				} finally {
-					if (abortControllerRef.current === abortController) {
-						//setIsLoading(false);
-					}
-				}
+			getRows: (params) => {
+				fetchRows(params);
 			},
 		}),
-		[filters],
+		[fetchRows],
 	);
+
+	useEffect(() => {
+		return () => {
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+			}
+		};
+	}, []);
 
 	return (
 		<div style={{ height: "calc(100vh - 150px)", width: "100%" }}>

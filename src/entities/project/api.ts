@@ -16,13 +16,38 @@ export interface GetProjectsParams {
 	managerId_ne?: number[];
 }
 
-export const getProjects = async (params: GetProjectsParams): Promise<{ data: Project[]; totalCount: number }> => {
-	const safeParams = {
-		...params,
-		managerId: params.managerId?.map(String),
-		managerId_ne: params.managerId_ne?.map(String),
+type JsonServerParams = Omit<GetProjectsParams, "managerId" | "managerId_ne"> & {
+	managerId_ne?: string[];
+	managerId_like?: string;
+	[key: string]: string | number | boolean | string[] | number[] | undefined;
+};
+
+export const getProjects = async (params: GetProjectsParams, signal?: AbortSignal): Promise<{ data: Project[]; totalCount: number }> => {
+	const { managerId, managerId_ne, ...restParams } = params;
+
+	const apiParams: JsonServerParams = {
+		...restParams,
 	};
-	const response = await apiClient<ProjectDto[]>(API_ENDPOINTS.PROJECTS, safeParams);
+
+	/**
+	 * ХАК ДЛЯ JSON-SERVER:
+	 * json-server имеет баг типизации при поиске по массивам чисел через GET-параметры.
+	 * Строка URL `?managerId=1&managerId=2` парсится бэкендом как массив строк ["1", "2"].
+	 * При внутреннем поиске json-server использует строгое равенство (===),
+	 * поэтому строка "1" не совпадает с числом 1 из БД, и сервер возвращает пустой ответ [].
+	 * * Обходное решение: трансформируем массив ID в паттерн регулярного выражения.
+	 * `managerId_like=^(1|2|3)$` заставляет сервер приводить типы к строке и искать точные
+	 * совпадения по Regex, что успешно фильтрует записи.
+	 */
+	if (managerId && managerId.length > 0) {
+		apiParams.managerId_like = `^(${managerId.join("|")})$`;
+	}
+
+	if (managerId_ne && managerId_ne.length > 0) {
+		apiParams.managerId_ne = managerId_ne.map(String);
+	}
+
+	const response = await apiClient<ProjectDto[]>(API_ENDPOINTS.PROJECTS, apiParams, signal);
 	const mappedData = response.data.map(mapProjectDtoToDomain);
 
 	return {
