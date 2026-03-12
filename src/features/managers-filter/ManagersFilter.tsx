@@ -54,7 +54,7 @@ const ManagerListItem = memo(({ manager, isChecked, onToggle }: ManagerListItemP
 ));
 
 interface ManagersFilterProps {
-	onChange?: (data: { mode: SelectionMode; ids: number[] }) => void;
+	onChange?: (data: { mode: SelectionMode; ids: number[]; search: string | null }) => void;
 }
 
 export const ManagersFilter: React.FC<ManagersFilterProps> = ({ onChange }) => {
@@ -77,8 +77,9 @@ export const ManagersFilter: React.FC<ManagersFilterProps> = ({ onChange }) => {
 		onChange?.({
 			mode: selectionMode,
 			ids: Array.from(selectedIds),
+			search: searchValue,
 		});
-	}, [selectionMode, selectedIds, onChange]);
+	}, [selectionMode, selectedIds, onChange, searchValue]);
 
 	useEffect(() => {
 		return () => {

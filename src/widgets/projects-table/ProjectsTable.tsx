@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, PaginationModule, ValueFormatterParams, ICellRendererParams } from "ag-grid-community";
 import { ServerSideRowModelModule, ColDef, IServerSideDatasource, IServerSideGetRowsParams } from "ag-grid-enterprise";
@@ -21,6 +21,7 @@ export interface ProjectsTableFilters {
 	status?: ProjectStatus;
 	priority?: ProjectPriority;
 	managers?: { mode: SelectionMode; ids: number[] };
+	search?: string | null;
 }
 
 // 4. Используем наш локальный тип
@@ -84,9 +85,18 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 		[],
 	);
 
+	const abortControllerRef = useRef<AbortController | null>(null);
+
 	const serverSideDatasource = useMemo<IServerSideDatasource>(
 		() => ({
 			getRows: async (params: IServerSideGetRowsParams) => {
+				if (abortControllerRef.current) {
+					abortControllerRef.current.abort();
+				}
+
+				const abortController = new AbortController();
+				abortControllerRef.current = abortController;
+
 				try {
 					const { startRow, endRow, sortModel } = params.request;
 					const limit = (endRow || 50) - (startRow || 0);
@@ -95,6 +105,7 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 					const apiParams: Record<string, any> = {
 						_page: page,
 						_limit: limit,
+						_name_like: filters.search,
 					};
 
 					if (sortModel && sortModel.length > 0) {
@@ -113,6 +124,7 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 							apiParams.managerId_ne = filters.managers.ids;
 						}
 					}
+					console.log(apiParams, filters);
 
 					const { data, totalCount } = await getProjects(apiParams);
 
@@ -123,6 +135,10 @@ export const ProjectsTable: React.FC<ProjectsTableProps> = ({ filters }) => {
 				} catch (error) {
 					console.error("Ошибка загрузки данных:", error);
 					params.fail();
+				} finally {
+					if (abortControllerRef.current === abortController) {
+						//setIsLoading(false);
+					}
 				}
 			},
 		}),
